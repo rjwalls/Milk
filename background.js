@@ -4,20 +4,31 @@
 chrome.cookies.onChanged.addListener(
     function(info) 
     {
-      console.log("onChanged" + JSON.stringify(info));
+//      console.log("onChanged" + JSON.stringify(info));
     }
 );
 
-// Hooks all web requests after headers are received and denies those setting
-// cookies. 
+// Logs all response headers containing Set-Cookie 
 chrome.webRequest.onHeadersReceived.addListener(
   function(details) {
 		for(var i in details.responseHeaders) {
 			if(details.responseHeaders[i].name == 'Set-Cookie') {
-				console.log("Ate a cookie!");
-				return {cancel: true};
+				console.log(details.responseHeaders[i]);
+//				return {cancel: true};
 			}
 		}
   },
   {urls: ["<all_urls>"]},
 	["blocking", "responseHeaders"]);
+
+// Logs all request headers containing Cookies.
+chrome.webRequest.onBeforeSendHeaders.addListener(
+	function(details) {
+		for(var i in details.requestHeaders) {
+			if(details.requestHeaders[i].name == 'Cookie') {
+				console.log(details.requestHeaders[i]);
+			}
+		}
+	},
+	{urls: ["<all_urls>"]},
+	["blocking", "requestHeaders"]);
