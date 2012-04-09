@@ -44,6 +44,15 @@ chrome.tabs.onUpdated.addListener(
 	kv_arr[tabId]=domain;
     });
 
+// Listen for the content script telling the extension that it's at a login page.
+chrome.extension.onRequest.addListener(
+  function(request, sender, sendResponse) {
+    if (request.page == "login page")
+	console.log('Logging in to this site');
+  });
+
+// This actually returns a host right now. For example, mail.google.com instead
+// of google.com. May need to address this later.
 function getDomain(url) {
     pathArray = url.replace('www.','');
     pathArray = pathArray.split('/');
