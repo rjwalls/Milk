@@ -1,5 +1,6 @@
 // Copyright (c) 2012 
 
+
 console.log(chrome.webRequest)
 
 //Logs anytime a cookie is changed.
@@ -10,17 +11,34 @@ chrome.cookies.onChanged.addListener( function(info) {
 // Logs all response headers containing Set-Cookie 
 chrome.webRequest.onHeadersReceived.addListener(
   function(details) {
-		for(var i in details.responseHeaders) {
-			if(details.responseHeaders[i].name == 'Set-Cookie') {
-				console.log(details.responseHeaders[i]);
-//				return {cancel: true};
-			}
-		}
-		
-	
+        for(var i in details.responseHeaders) {
+            if(details.responseHeaders[i].name == 'Set-Cookie') {
+                console.log(details.responseHeaders[i].value);
+            
+                var cKey = getCookieKey();
+                
+                details.responseHeaders[i].value = cKey + details.responseHeaders[i].value;
+                console.log(details.responseHeaders[i].value);
+            }
+        }
+        
+        return  { responseHeaders:details.responseHeaders };
+  },
+    {urls: ["<all_urls>"]},
+    ["blocking", "responseHeaders"]);
+
+// Logs all response headers containing Set-Cookie 
+chrome.webRequest.onCompleted.addListener(
+  function(details) {
+        for(var i in details.responseHeaders) {
+            if(details.responseHeaders[i].name == 'Set-Cookie') {
+                console.log(details.responseHeaders[i]);
+//              return {cancel: true};
+            }
+        }
   },
   {urls: ["<all_urls>"]},
-	["blocking", "responseHeaders"]);
+	["responseHeaders"]);
 
 // Logs all request headers containing Cookies. This function will record any header modification we make in our "onBeforeSendHeaders" listener.
 chrome.webRequest.onSendHeaders.addListener(
@@ -38,36 +56,56 @@ chrome.webRequest.onSendHeaders.addListener(
 // Logs all request headers containing Cookies.
 chrome.webRequest.onBeforeSendHeaders.addListener(
     function(details) {
-    
-        //chrome shouldn't be able to find any cookies for this domain, but we should check and make sure
+        var cKey = getCookieKey();
+        var cString = "";
+        
+        // Find all of the cookies
         for(var i in details.requestHeaders) {
             if(details.requestHeaders[i].name === 'Cookie') {
-                //Oh noes, cookie found, better remove it.
-                console.log(details.requestHeaders[i]);
+                //Cookie(s) found, we need to split the string to get all of the cookies.
+                var cookiesRaw = details.requestHeaders[i].value.split(";");
+                
+                //remove the old cookie header
                 details.requestHeaders.splice(i, 1);
+                
+                for(var j in cookiesRaw){
+                    //remove the whitespace.
+                    cookie = cookiesRaw[j].replace(/^\s+|\s+$/g,"");
+                    
+                    if( cookie.substring(0, cKey.length) == cKey){
+                        
+                        if( cString.length > 0 ){
+                            cString = cString + "; "; 
+                        }
+                        
+                        //remove the prefix
+                        cookie = cookie.substring(cKey.length, cookie.length);
+                        
+                        cString = cString + cookie;
+                    }
+                }
+                
+
             }
         }
         
-      
-        // We have to make a call to our store and pull all cookies. Then we add those those cookies to the request via headers. Header name should be 'Cookie' and value should be 'key=value'
-        var headerString = getCookieString(details.tabId, details.url);
+        if( cString.length > 0 ) {
+            var cookieHeader = {name:"Cookie", value:cString};
+            details.requestHeaders.push(cookieHeader);
+            
+            console.log(cookieHeader);
+        }
         
-        var cookieHeader = {name:"Cookie", value:headerString};
         
-        details.requestHeaders.push(cookieHeader);
-    
-        var responseObj = { requestHeaders:details.requestHeaders };
-        
-        return responseObj;
+        return  { requestHeaders:details.requestHeaders };
     },
     {urls: ["<all_urls>"]},
     ["blocking", "requestHeaders"]);
 
-// This function gets all cookies associated with a certain tab and domain and returns objects of type {"value", "key"}    
-function getCookieString(tabId, url){
-    //TODO: Need to implement this.
+// This function gets the cookie key for the current tab. This key is used to store and retrieve keys associated with a particular first party site.
+function getCookieKey(){
+    //TODO: Implement this.
     
-    return "test_key=test_value; test1_key=test1_value";
-
+    return "fluffyKittenKey!!!";
 }
 
