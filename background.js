@@ -18,7 +18,7 @@ chrome.webRequest.onHeadersReceived.addListener(
             if(details.responseHeaders[i].name == 'Set-Cookie') {
                 console.log(details.responseHeaders[i].value);
             
-                var cKey = getCookieKey();
+                var cKey = getCookieKey(details.tabId, details.url);
                 
                 details.responseHeaders[i].value = cKey + details.responseHeaders[i].value;
                 console.log(details.responseHeaders[i].value);
@@ -60,7 +60,7 @@ chrome.webRequest.onSendHeaders.addListener(
 // Modifies the headers to only include the cookies we want
 chrome.webRequest.onBeforeSendHeaders.addListener(
     function(details) {
-        var cKey = getCookieKey();
+        var cKey = getCookieKey(details.tabId, details.url);
         var cString = "";
         
         // Find all of the cookies
@@ -107,10 +107,18 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
     ["blocking", "requestHeaders"]);
 
 // This function gets the cookie key for the current tab. This key is used to store and retrieve keys associated with a particular first party site.
-function getCookieKey(){
-    //TODO: Implement this.
+function getCookieKey(tabId, url){
     
-    return "fluffyKittenKey!!!";
+    //We have to check for this because the webrequest listener fires before the tabs listener and thus this will be undefined for the first webrequest from a given tab.
+    if(kv_arr[tabId] == undefined || kv_arr[tabId] == "newtab"){
+        console.log(kv_arr[tabId]);
+        console.log(url);
+        domain = getDomain(url);
+        kv_arr[tabId]=domain; 
+    }
+    //console.log(kv_arr[tabId]);
+    
+    return  kv_arr[tabId] + "!!!";
 }
 
 // A listener that fires whenever a tab is updated to check the URL.
@@ -124,6 +132,7 @@ chrome.tabs.onUpdated.addListener(
     }
 );
 
+
 // Listen for the content script telling the extension that it's at a login page.
 chrome.extension.onRequest.addListener(
     function(request, sender, sendResponse) {
@@ -136,7 +145,7 @@ chrome.extension.onRequest.addListener(
 // This actually returns a host right now. For example, .mail.google.com instead
 // of google.com. May need to address this later.
 function getDomain(url) {
-    pathArray = url.replace('www','');
+    pathArray = url.replace('www.','');
     pathArray = pathArray.split('/');
     return pathArray[2];
 }
