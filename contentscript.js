@@ -9,10 +9,9 @@ function detectLogin() {
     for(var x = 0; x < els.length; x++) { 
 	if(els[x].type.toLowerCase() == 'password' ) { 
 	    // Notify background.js
-	    chrome.extension.sendRequest({page: 'login page'});
+	    chrome.extension.sendRequest({page: 'login page', domain: document.domain.replace('www','')});
 	}
     }
 }
 
 detectLogin();
-getDomain();
