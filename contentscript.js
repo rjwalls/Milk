@@ -1,5 +1,5 @@
 function getDomain() {
-    chrome.extension.sendRequest(document.domain);
+    chrome.extension.sendRequest({domain: document.domain});
 }
 
 function detectLogin() {
@@ -15,3 +15,4 @@ function detectLogin() {
 }
 
 detectLogin();
+getDomain();
