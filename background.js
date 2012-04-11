@@ -1,8 +1,7 @@
 // Copyright (c) 2012 
 
-
 console.log(chrome.webRequest)
-// Globals are cool in JS, right?
+// Global storage for tabId->domain mappings.
 var kv_arr=new Array(); 
 
 //Logs anytime a cookie is changed.
@@ -97,6 +96,9 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
                         console.log(cookie);
                         //hack. Send it for now. We need to update the cookie to add the key!
                         cString = cString + cookie;
+			var cName = cookie.split('=')[0];
+			var keyedName = cKey+cName;
+			rewriteCookie(cName,keyedName,details.url);
                     }
                 }
                 
@@ -132,6 +134,22 @@ function getCookieKey(tabId, url){
     return  kv_arr[tabId] + "!!!";
 }
 
+// Replace unkeyed cookies with a keyed version.
+function rewriteCookie(name, keyed_name, url) {
+    // Get the unkeyed cookie
+    chrome.cookies.get({"url": url, "name": name}, function(details) {
+	if(details == null) {
+	    console.log('No matching JS cookies.');
+	    return;
+	}
+	// Delete the existing cookie from the CookieStore
+	chrome.cookies.remove({"url": url, "name": name});
+	// Add the new, keyed version to the CookieStore
+	chrome.cookies.set({"url": url, "name": keyed_name, "value": details.value, "domain": details.domain, "path": details.path, "secure": details.secure, "httpOnly": details.httpOnly, "expirationDate": details.expirationDate});
+    }
+)
+}
+
 // A listener that fires whenever a tab is updated to check the URL.
 chrome.tabs.onUpdated.addListener(
     function(tabId, changeInfo, tab) {
@@ -156,7 +174,11 @@ chrome.extension.onRequest.addListener(
 // This actually returns a host right now. For example, .mail.google.com instead
 // of google.com. May need to address this later.
 function getDomain(url) {
-    pathArray = url.replace('www.','');
-    pathArray = pathArray.split('/');
-    return pathArray[2];
+    pathArray = url.replace('www','');
+    pathArray = pathArray.split('/')[2].split('.');
+    if(pathArray[pathArray.length-1].length == 3) {
+	console.log(pathArray);
+	console.log(pathArray.length);
+	return pathArray[pathArray.length-2]+'.'+pathArray[pathArray.length-1]
+    }
 }
