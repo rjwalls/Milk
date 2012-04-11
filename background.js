@@ -177,8 +177,7 @@ function getDomain(url) {
     pathArray = url.replace('www','');
     pathArray = pathArray.split('/')[2].split('.');
     if(pathArray[pathArray.length-1].length == 3) {
-	console.log(pathArray);
-	console.log(pathArray.length);
 	return pathArray[pathArray.length-2]+'.'+pathArray[pathArray.length-1]
     }
+    return PathArray[pathArray.length-3]+'.'+pathArray[pathArray.length-2]+'.'+pathArray[pathArray.length-1];
 }
