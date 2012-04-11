@@ -87,6 +87,17 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
                         
                         cString = cString + cookie;
                     }
+                    //Check if the cookie was set by javascript and not yet associated with a key
+                    else if( cookie.indexOf("!!!") == -1){
+                        if( cString.length > 0 ){
+                            cString = cString + "; "; 
+                        }
+                    
+                        console.log("Sending unkeyed cookie");
+                        console.log(cookie);
+                        //hack. Send it for now. We need to update the cookie to add the key!
+                        cString = cString + cookie;
+                    }
                 }
                 
 
