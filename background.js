@@ -140,12 +140,15 @@ function rewriteCookie(name, keyed_name, url) {
     chrome.cookies.get({"url": url, "name": name}, function(details) {
 	if(details == null) {
 	    console.log('No matching JS cookies.');
+	    console.log(name +  ' ' + keyed_name + ' ' + url);
 	    return;
 	}
+	console.log(keyed_name);
 	// Delete the existing cookie from the CookieStore
 	chrome.cookies.remove({"url": url, "name": name});
 	// Add the new, keyed version to the CookieStore
 	chrome.cookies.set({"url": url, "name": keyed_name, "value": details.value, "domain": details.domain, "path": details.path, "secure": details.secure, "httpOnly": details.httpOnly, "expirationDate": details.expirationDate});
+	console.log(details);
     }
 )
 }
@@ -178,6 +181,8 @@ function getDomain(url) {
     pathArray = pathArray.split('/')[2].split('.');
     if(pathArray[pathArray.length-1].length == 3) {
 	return pathArray[pathArray.length-2]+'.'+pathArray[pathArray.length-1]
+    } else if(pathArray[pathArray.length-1].length == 2) {
+	return pathArray[pathArray.length-3]+'.'+pathArray[pathArray.length-2]+'.'+pathArray[pathArray.length-1];
     }
-    return PathArray[pathArray.length-3]+'.'+pathArray[pathArray.length-2]+'.'+pathArray[pathArray.length-1];
+    console.log('Failed to parse url string.');
 }
