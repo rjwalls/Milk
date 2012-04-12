@@ -175,11 +175,10 @@ function rewriteCookie(name, keyed_name, url) {
 // A listener that fires whenever a tab is updated to check the URL.
 chrome.tabs.onUpdated.addListener(
     function(tabId, changeInfo, tab) {
-    // Associate the tabId with the current tab URL to track the current domain that
-    // should be able to fetch cookies.
-    domain = getDomain(tab.url);
-    console.log("Associating Tab " + tabId + ' with ' + domain);
-    kv_arr[tabId]=domain;
+        // Associate the tabId with the current tab URL to track the current domain that should be able to fetch cookies.
+        domain = getDomain(tab.url);
+        console.log("Associating Tab " + tabId + ' with ' + domain);
+        kv_arr[tabId]=domain;
     }
 );
 
@@ -201,8 +200,16 @@ function getDomain(url) {
     //pathArray = url.replace('www','');
     
     //split on the /, take the domain part and split on the '.'
-    pathArray = pathArray.split('/')[2].split('.');
+    pathArray = url.split('/');
     
+    
+    if(pathArray.length < 2){
+        console.log('Failed to parse url string: ' + url);
+        return url;
+    }
+    
+    pathArray = pathArray[2].split('.');
+
     //works three letter domain names, e.g. those used for US sites like Google.com and UMass.edu
     if(pathArray[pathArray.length-1].length == 3) {
         return pathArray[pathArray.length-2]+'.'+pathArray[pathArray.length-1]
