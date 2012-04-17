@@ -15,7 +15,7 @@ chrome.webRequest.onHeadersReceived.addListener(
     function(details) {
         for(var i in details.responseHeaders) {
             //check if this response header is for setting cookies.
-            if(details.responseHeaders[i].name == 'Set-Cookie') {
+            if(details.responseHeaders[i].name.toLowerCase() == 'set-cookie') {
                 console.log('Logging cookie header before modification.');
                 console.log(details.responseHeaders[i].value);
             
@@ -39,7 +39,7 @@ chrome.webRequest.onHeadersReceived.addListener(
 chrome.webRequest.onCompleted.addListener(
     function(details) {
         for(var i in details.responseHeaders) {
-            if(details.responseHeaders[i].name == 'Set-Cookie') {
+            if(details.responseHeaders[i].name.toLowerCase() == 'set-cookie') {
             
                 //If we made any changes to the header, they should show up here.
                 console.log('Logging the cookie headers upon completion of webrequest');
@@ -54,7 +54,7 @@ chrome.webRequest.onCompleted.addListener(
 chrome.webRequest.onSendHeaders.addListener(
     function(details) {
         for(var i in details.responseHeaders) {
-            if(details.responseHeaders[i].name == 'Set-Cookie') {
+            if(details.responseHeaders[i].name.toLowerCase() == 'cookie') {
                 console.log('Logging the cookie headers upon sending.')
                 console.log(details.responseHeaders[i]);
             }
@@ -85,7 +85,7 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
         
         // Find all of the cookies
         for(var i in details.requestHeaders) {
-            if(details.requestHeaders[i].name === 'Cookie') {
+            if(details.requestHeaders[i].name.toLowerCase() === 'cookie') {
                 //Cookie(s) found, we need to split the string to get all of the cookies. Cookie value strings will look like "key1=value1; key2=value2; ..."
                 var cookiesRaw = details.requestHeaders[i].value.split(";");
                 
