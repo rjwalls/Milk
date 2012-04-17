@@ -63,12 +63,25 @@ chrome.webRequest.onSendHeaders.addListener(
     {urls: ["<all_urls>"]},
     ["requestHeaders"]);
 
+function splitCookieString(cookie) {
+    var index = cookie.indexOf('=');
+    
+    var name = cookie.substring(0, index);
+    //Add the +1 to skip the '='
+    var value = cookie.substring(index+1, cookie.length);
+    
+    return {'name':name, 'value':value};
+}
+
+
+var requestOrdinal = 0;
 
 // Modifies the headers to only include the cookies we want
 chrome.webRequest.onBeforeSendHeaders.addListener(
     function(details) {
         var cKey = getCookieKey(details.tabId, details.url);
         var cString = "";
+        var cDict = {};
         
         // Find all of the cookies
         for(var i in details.requestHeaders) {
@@ -93,6 +106,12 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
                         //remove the key prefix before sending to the server so the cookie will have a name the server expects.
                         cookie = cookie.substring(cKey.length, cookie.length);
                         
+                        var cookieSplit = splitCookieString(cookie);
+                        
+                        if(!cDict[cookieSplit.name]){
+                            cDict[cookieSplit.name] = cookieSplit.value;
+                        }
+                        
                         //Append the current cookie to the cookie header string.
                         cString = cString + cookie;
                     }
@@ -105,15 +124,24 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
                         console.log("Sending unkeyed cookie");
                         console.log(cookie);
                         
+                        var cookieSplit = splitCookieString(cookie);
+                        
+                        if(cDict[cookieSplit.name]){
+                            console.log('Already found another cookie with this name. Overwriting with this cookie.');
+                        }
+                        
+                        cDict[cookieSplit.name] =cookieSplit.value;
+                        
                         //We need to update the cookie to add the key!
                         cString = cString + cookie;
                         
-                        //Get the name of the cookie
                         var cName = cookie.split('=')[0];
                         //append the domain key
-                        var keyedName = cKey+cName;
+                        var keyedName = cKey+cookieSplit.name;
+                        
                         //rewrite the cookie in the cookie store to bind it to the current domain.
-                        rewriteCookie(cName,keyedName,details.url);
+                        //This  call appears to be causing a race condition. Commenting it out for testing.
+                        rewriteCookie(cookieSplit.name,keyedName,details.url, requestOrdinal++);
                     }
                 }
                 
@@ -121,11 +149,22 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
             }
         }
         
+        cString = '';
+        
+        for(var i in cDict){
+            if( cString.length > 0 ){
+                cString = cString + "; "; 
+            }
+            
+            cString = cString + i + '='+ cDict[i];
+        }
+        
         //If we found any cookies with the appropriate domain key, then we add the new header to the request.
         if( cString.length > 0 ) {
             var cookieHeader = {name:"Cookie", value:cString};
             details.requestHeaders.push(cookieHeader);
             
+            console.log('New cookie Header:');
             console.log(cookieHeader);
         }
         
@@ -150,8 +189,45 @@ function getCookieKey(tabId, url){
     return  kv_arr[tabId] + "!!!";
 }
 
+
+var updateLog = {};
+
+function mostRecentUpdate(keyed_name, url, ordinal){
+    console.log("Current request ordinal: " + ordinal);
+    
+    
+    domain = getDomain(url);
+    
+    console.log("For " + domain + " " + keyed_name);
+    
+    if(!updateLog[domain]){
+        console.log("Adding domain: " + domain + " to the update log.");
+        updateLog[domain] = {};
+    }
+    
+    if(!updateLog[domain][keyed_name]){
+        console.log("Adding cookie key: " + keyed_name + " to the updateLog[" + domain + "].");
+        updateLog[domain][keyed_name] = -1;
+    }
+    
+    if(updateLog[domain][keyed_name] < ordinal){
+        updateLog[domain][keyed_name] = ordinal;
+        console.log("Most recent update.");
+        return true;
+    }
+    else{
+        console.log("Old update");
+        return false;
+    }
+}
+
 // Replace unkeyed cookies with a keyed version.
-function rewriteCookie(name, keyed_name, url) {
+function rewriteCookie(name, keyed_name, url, ordinal) {
+    //make sure this is the most recent update
+    if( !mostRecentUpdate(keyed_name, url, ordinal) ){
+        return;
+    }
+    
     // Get the unkeyed cookie
     chrome.cookies.get({"url": url, "name": name}, function(details) {
 	
@@ -186,8 +262,13 @@ chrome.tabs.onUpdated.addListener(
 // Listen for the content script telling the extension that it's at a login page.
 chrome.extension.onRequest.addListener(
     function(request, sender, sendResponse) {
+        console.log("Message from content script!");
+    
         if (request.page == "login page") {  
             console.log(request.domain + ' is a login page.');
+        }
+        else if(request.page == "debug"){
+            console.log("DEBUG::" + request.message);
         }
     }
 );
