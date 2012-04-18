@@ -1,7 +1,3 @@
-function getDomain() {
-    chrome.extension.sendRequest({domain: document.domain});
-}
-
 function detectLogin() {
 // Get all elements with <input> tags (forms)
     var els = document.getElementsByTagName('input');
@@ -63,11 +59,31 @@ function cookieUpdate(name, value, remove){
     _cookieDiv.innerText = cStringNew;
 }
 
+//Checks to see if the domain given by the cookie matches what we see in document.domain
+function domainMatch(domain){
+    var docDomain = document.domain;
+    
+    if( docDomain.indexOf('.') != 0 )
+        docDomain = '.' + docDomain;
+        
+    if(domain.toLowerCase() == docDomain.toLowerCase())
+        return true;
+    
+    var index = docDomain.indexOf(domain);
+    
+    if( index == (docDomain.length - domain.length) )
+        return true;
+    
+    return false;
+}
+
 chrome.extension.onRequest.addListener(
     function(request, sender, sendResponse){
-        console.log("Cookie update message received by content script.");
+        console.log("Cookie update message received by content script! " + request.cookieName);
+        console.log(request.domain);
+        console.log(document.domain);
         
-        if(request.domain == document.domain){
+        if(domainMatch(request.domain)){
             console.log("Cookie update for correct domain.");
             console.log(request);
             cookieUpdate(request.cookieName, request.cookieValue, request.isRemoved);
@@ -82,11 +98,11 @@ var actualCode =
     'var _cookieDiv = document.createElement("div");' +
     '_cookieDiv.setAttribute("id","cookieDiv");' +
     'document.documentElement.appendChild(_cookieDiv);' +
-    '_cookieDiv.style.display = "none";' +
+    //'_cookieDiv.style.display = "none";' +
     'var _messageDiv = document.createElement("div");' +
     '_messageDiv.setAttribute("id","messageDiv");' +
     'document.documentElement.appendChild(_messageDiv);' +
-    '_messageDiv.style.display = "none";' +  
+    //'_messageDiv.style.display = "none";' +  
     'var _messageEvent = document.createEvent("Event");' +
     '_messageEvent.initEvent("messageEvent", true, true);' +
     '_messageDiv.innerText = "Nom Nom Nom";' +

@@ -427,8 +427,7 @@ function parseAndStoreRawCookie(tabId, url, cookieRaw){
 }
 
 
-// This actually returns a host right now. For example, .mail.google.com instead
-// of google.com. May need to address this later.
+
 function getDomain(url) {
     //TODO: Not sure what happens when you specify an IP address.
     
