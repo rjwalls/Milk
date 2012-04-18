@@ -17,6 +17,8 @@ function cookieUpdate(name, value, remove){
     var cookieFound = false;
     var cookiesRaw = cString.split(";");
     
+    console.log(name + " isRemoved? " + remove);
+    
     for( var i in cookiesRaw ) {
         //remove the whitespace
         cookie = cookiesRaw[i].replace(/^\s+|\s+$/g,"");
@@ -31,7 +33,7 @@ function cookieUpdate(name, value, remove){
                 continue;
                 
             //replace the cookie with the new value
-            cookie = name + ";" + value;
+            cookie = name + "=" + value;
         }
         
          //Add a semicolon, if needed, to separate the cookies we have already processed.
@@ -44,12 +46,12 @@ function cookieUpdate(name, value, remove){
     }
     
     //if we never found the cookie name, i.e. its a new cookie, we need to add it.
-    if( !cookieFound ){
+    if( !cookieFound && !remove){
         if( cStringNew.length > 0 )
             cStringNew += "; "; 
     
         //Add the cookie to the new cookie string
-        cStringNew += name + ";" + value;
+        cStringNew += name + "=" + value;
     }
     
     
@@ -77,32 +79,15 @@ function domainMatch(domain){
     return false;
 }
 
-chrome.extension.onRequest.addListener(
-    function(request, sender, sendResponse){
-        console.log("Cookie update message received by content script! " + request.cookieName);
-        console.log(request.domain);
-        console.log(document.domain);
-        
-        if(domainMatch(request.domain)){
-            console.log("Cookie update for correct domain.");
-            console.log(request);
-            cookieUpdate(request.cookieName, request.cookieValue, request.isRemoved);
-        }
-    
-    }
-);
-
-
-
 var actualCode = 
     'var _cookieDiv = document.createElement("div");' +
     '_cookieDiv.setAttribute("id","cookieDiv");' +
     'document.documentElement.appendChild(_cookieDiv);' +
-    //'_cookieDiv.style.display = "none";' +
+    '_cookieDiv.style.display = "none";' +
     'var _messageDiv = document.createElement("div");' +
     '_messageDiv.setAttribute("id","messageDiv");' +
     'document.documentElement.appendChild(_messageDiv);' +
-    //'_messageDiv.style.display = "none";' +  
+    '_messageDiv.style.display = "none";' +  
     'var _messageEvent = document.createEvent("Event");' +
     '_messageEvent.initEvent("messageEvent", true, true);' +
     '_messageDiv.innerText = "Nom Nom Nom";' +
@@ -128,6 +113,21 @@ chrome.extension.sendRequest({type : 'cookieBootstrap', url : document.URL},
         _cookieDiv.innerText = cString;
     });
     
+    
+chrome.extension.onRequest.addListener(
+    function(request, sender, sendResponse){
+        console.log("Cookie update message received by content script! " + request.cookieName);
+        console.log(request.domain);
+        console.log(document.domain);
+        
+        if(domainMatch(request.domain)){
+            console.log("Cookie update for correct domain.");
+            cookieUpdate(request.cookieName, request.cookieValue, request.isRemoved);
+        }
+    
+    }
+);
+
 document.addEventListener('messageEvent', 
     function() { 
         console.log("Sending cookie info to background: " + _messageDiv.innerText); 
