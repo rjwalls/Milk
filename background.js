@@ -8,6 +8,49 @@ var kv_arr=new Array();
 chrome.cookies.onChanged.addListener( 
     function(info) {
         console.log("onChanged" + JSON.stringify(info));
+        
+        //TODO: Whenever a cookie is updated, we need to send the updated cookie to every tab that should be able to read it via javascript (and the cookie has httpOnly set to false)
+        
+        
+        
+        //Only update the tabs if the cookie is not http only
+        if( info.cookie.httpOnly) 
+            return;
+    
+        //TODO: if the cookie was removed then we need to inform the tabs too!
+    
+        console.log("Checking updated cookie for key");
+    
+        var matches = info.cookie.name.match('[.A-Za-z0-9]+!!!');
+        
+        //if it has no key then do nothing.
+        if( !matches )
+            return;
+            
+        //assume the key is the first match
+        var key = matches[0];
+        console.log("Key is: " + key);
+        
+        //remove key from name
+        var name = info.cookie.name.substring(key.length, info.cookie.name.length);
+        
+        console.log("Name is: " + name);
+        
+        //Get the list of tabs associated with that key
+        tabIds = getTabs(key);
+        
+        //for every tab associated with that key, send the update
+        for( var i in tabIds ){
+            var request = {cookieName: name, cookieValue: info.cookie.value, isRemoved : info.removed, domain : info.cookie.domain };
+        
+            console.log("Sending update message to tab " + tabIds[i]);
+        
+            chrome.tabs.sendRequest(parseInt(tabIds[i]), request);
+        }
+
+
+        
+        
     });
 
 // Logs all response headers containing Set-Cookie 
@@ -189,6 +232,18 @@ function getCookieKey(tabId, url){
     return  kv_arr[tabId] + "!!!";
 }
 
+// This function gets all tab ids associate with a given key
+function getTabs(key){
+    var tabs = [];
+    
+    for(var id in kv_arr){
+        if( (kv_arr[id] + "!!!") == key )
+            tabs.push(id);
+    }
+    
+    return tabs;
+}
+
 
 var updateLog = {};
 
@@ -248,6 +303,50 @@ function rewriteCookie(name, keyed_name, url, ordinal) {
 )
 }
 
+function getCookieStringFromStore(url, tabId, sendResponse) {
+    //get all cookies for a given domain for a given key
+    var cKey = getCookieKey(tabId, url);
+    var cString = "";
+    
+    chrome.cookies.getAll({"url": url}, function(cookies) {
+	
+        if(cookies == null || cookies.length == 0) {
+            console.log('No cookies found with details: ' + url);
+            return;
+        }
+        
+        console.log(cookies);
+        
+        for( var i in cookies ){
+            //Check if the cookie's prepended key matches what we expect, i.e. this cookie is bound to this domain.
+            if( cookies[i].name.substring(0, cKey.length) != cKey){
+                console.log("Key doesn't match. Skipping.");
+                continue;
+            }
+            
+            //if the cookie is httpOnly, we don't want to add it to the cookie string
+            if( cookies[i].httpOnly ){
+                console.log("Cookie is httpOnly. Skipping.");
+                continue;
+            }
+                
+             //remove the key prefix
+            name = cookies[i].name.substring(cKey.length, cookies[i].name.length);
+        
+            //Add a semicolon, if needed, to separate the cookies we have already processed.
+            if( cString.length > 0 )
+                cString += "; "; 
+                
+            cString += (name +  "=" + cookies[i].value);
+        }
+        
+        console.log(cString);
+            
+        sendResponse(cString);
+        
+    });
+}
+
 // A listener that fires whenever a tab is updated to check the URL.
 chrome.tabs.onUpdated.addListener(
     function(tabId, changeInfo, tab) {
@@ -264,14 +363,69 @@ chrome.extension.onRequest.addListener(
     function(request, sender, sendResponse) {
         console.log("Message from content script!");
     
-        if (request.page == "login page") {  
-            console.log(request.domain + ' is a login page.');
+        if (request.type == "cookieBootstrap") {  
+            console.log("Bootstrapping the cookies for the page load.");
+            getCookieStringFromStore(request.url, sender.tab.id, sendResponse);
         }
-        else if(request.page == "debug"){
-            console.log("DEBUG::" + request.message);
+        else if(request.type == "setCookie") {
+            console.log("Setting cookie received from javascript: " + request.cookieRaw);
+            parseAndStoreRawCookie(sender.tab.id, request.url, request.cookieRaw);
         }
     }
 );
+
+
+function parseAndStoreRawCookie(tabId, url, cookieRaw){
+    console.log("Attempting to parse raw cookie string: " + cookieRaw);
+    
+    var cookieObj = {};
+    cookieObj.url = url;
+    
+    var cKey = getCookieKey(tabId, url);
+
+    
+    var cookieParts = cookieRaw.split(';');
+    
+    console.log(cookieParts);
+    
+    for( var i=0; i<cookieParts.length; i++){
+        if(cookieParts[i].length == 0)
+            continue;
+    
+        partSplit = cookieParts[i].replace(/^\s+|\s+$/g,"").split('=');
+        
+        //first part is the name value pair
+        if( i == 0 ){
+            cookieObj.name = cKey + partSplit[0];
+            cookieObj.value = partSplit[1];
+        }
+        else if( partSplit[0].toLowerCase() == "path" ){
+            cookieObj.path = partSplit[1];
+        }
+        else if( partSplit[0].toLowerCase() == "domain" ){
+            cookieObj.domain = partSplit[1];
+        }
+        //else if( partSplit[0].toLowerCase() == "max-age" ){
+            //not sure what to do here....
+        //}
+        else if( partSplit[0].toLowerCase() == "expires" ){
+            //convert the gmt string to seconds since the unix epoch
+            var date = new Date(partSplit[1]);
+            cookieObj.expirationDate = date.getTime() / 1000;
+        }
+        else if( partSplit[0].toLowerCase() == "secure" ){
+            cookieObj.secure = true;
+        }
+        else{
+            console.log("Unknown part!!!! " + partSplit); 
+        }
+    }
+    
+    console.log(cookieObj);
+    
+    chrome.cookies.set(cookieObj);
+}
+
 
 // This actually returns a host right now. For example, .mail.google.com instead
 // of google.com. May need to address this later.
