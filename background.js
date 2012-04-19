@@ -96,10 +96,10 @@ chrome.webRequest.onCompleted.addListener(
 // Logs all request headers containing Cookies. This function will record any header modification we make in our "onBeforeSendHeaders" listener.
 chrome.webRequest.onSendHeaders.addListener(
     function(details) {
-        for(var i in details.responseHeaders) {
-            if(details.responseHeaders[i].name.toLowerCase() == 'cookie') {
+        for(var i in details.requestHeaders) {
+            if(details.requestHeaders[i].name.toLowerCase() == 'cookie') {
                 console.log('Logging the cookie headers upon sending.')
-                console.log(details.responseHeaders[i]);
+                console.log(details.requestHeaders[i]);
             }
         }
     },
@@ -392,28 +392,35 @@ function parseAndStoreRawCookie(tabId, url, cookieRaw){
         if(cookieParts[i].length == 0)
             continue;
     
-        partSplit = cookieParts[i].replace(/^\s+|\s+$/g,"").split('=');
+        //remove the whitespace
+        var cString = cookieParts[i].replace(/^\s+|\s+$/g,"");
+    
+        var splitIndex = cString.indexOf("=");
+        
+        var namePart = cString.substring(0, splitIndex);
+        var valuePart = cString.substring(splitIndex+1, cString.length);
+        
         
         //first part is the name value pair
         if( i == 0 ){
-            cookieObj.name = cKey + partSplit[0];
-            cookieObj.value = partSplit[1];
+            cookieObj.name = cKey + namePart;
+            cookieObj.value = valuePart;
         }
-        else if( partSplit[0].toLowerCase() == "path" ){
-            cookieObj.path = partSplit[1];
+        else if( namePart.toLowerCase() == "path" ){
+            cookieObj.path = valuePart;
         }
-        else if( partSplit[0].toLowerCase() == "domain" ){
-            cookieObj.domain = partSplit[1];
+        else if( namePart.toLowerCase() == "domain" ){
+            cookieObj.domain = valuePart;
         }
         //else if( partSplit[0].toLowerCase() == "max-age" ){
             //not sure what to do here....
         //}
-        else if( partSplit[0].toLowerCase() == "expires" ){
+        else if( namePart.toLowerCase() == "expires" ){
             //convert the gmt string to seconds since the unix epoch
-            var date = new Date(partSplit[1]);
+            var date = new Date(valuePart);
             cookieObj.expirationDate = date.getTime() / 1000;
         }
-        else if( partSplit[0].toLowerCase() == "secure" ){
+        else if( namePart.toLowerCase() == "secure" ){
             cookieObj.secure = true;
         }
         else{
