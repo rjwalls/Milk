@@ -370,6 +370,7 @@ chrome.extension.onRequest.addListener(
         else if(request.type == "setCookie") {
             console.log("Setting cookie received from javascript: " + request.cookieRaw);
             parseAndStoreRawCookie(sender.tab.id, request.url, request.cookieRaw);
+            sendResponse("blah");
         }
     }
 );

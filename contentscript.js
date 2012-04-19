@@ -93,7 +93,7 @@ var actualCode =
     '_messageDiv.innerText = "Nom Nom Nom";' +
     'var _cookie = document.cookie;' + 
     'console.log(document.cookie);' + 
-    'document.__defineSetter__("cookie", function(the_cookie) {_cookie = the_cookie; console.log("Our cookie setter was called! " + the_cookie); _messageDiv.innerText = the_cookie; _messageDiv.dispatchEvent(_messageEvent);} );' +
+    'document.__defineSetter__("cookie", function(the_cookie) {_cookie = the_cookie; console.log("Our cookie setter was called! " + the_cookie); _messageDiv.innerText = the_cookie; _messageDiv.dispatchEvent(_messageEvent); } );' +
     'document.__defineGetter__("cookie", function() {console.log("Our getter was called: " + _cookieDiv.innerText); return _cookieDiv.innerText;} );';
 
 var script = document.createElement('script');
@@ -101,7 +101,6 @@ script.appendChild(document.createTextNode(actualCode));
 (document.head || document.documentElement).appendChild(script);
 script.parentNode.removeChild(script);
 var _messageDiv = document.getElementById("messageDiv");
-
 
 var _cookieDiv = document.getElementById("cookieDiv");
 
@@ -131,8 +130,29 @@ chrome.extension.onRequest.addListener(
 document.addEventListener('messageEvent', 
     function() { 
         console.log("Sending cookie info to background: " + _messageDiv.innerText); 
-        chrome.extension.sendRequest({type:'setCookie', url : document.URL, cookieRaw:_messageDiv.innerText});
+        
+        rawCookieUpdate(_messageDiv.innerText);
+        
+        chrome.extension.sendRequest(
+            {type:'setCookie', url : document.URL, cookieRaw:_messageDiv.innerText}, 
+            function(details){console.log('done messing stuff up!'); });
     
     });
+    
+    
+function rawCookieUpdate(cStringRaw){
+        var cookieParts = cStringRaw.split(";");
+
+        //remove the whitespace
+        var cString = cookieParts[0].replace(/^\s+|\s+$/g,"");
+    
+        var splitIndex = cString.indexOf("=");
+        
+        var namePart = cString.substring(0, splitIndex);
+        var valuePart = cString.substring(splitIndex+1, cString.length);
+        
+        _cookieDiv.innerText += "; " + namePart + "=" + valuePart;
+        
+}
 
 
