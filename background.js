@@ -1,13 +1,21 @@
 // Copyright (c) 2012 
 
-console.log(chrome.webRequest)
+// Logging switch
+var DEBUG = new Boolean(0);
 // Global storage for tabId->domain mappings.
-var kv_arr=new Array(); 
+var kv_arr=new Array();
+var root_store = new Array();
+
+if(DEBUG) {
+    //console.log(chrome.webRequest)
+}
 
 //Logs anytime a cookie is changed.
 chrome.cookies.onChanged.addListener( 
     function(info) {
-        console.log("onChanged" + JSON.stringify(info));
+	if(DEBUG) {
+            //console.log("onChanged" + JSON.stringify(info));
+	}
         
         //TODO: Whenever a cookie is updated, we need to send the updated cookie to every tab that should be able to read it via javascript (and the cookie has httpOnly set to false)
         
@@ -19,7 +27,9 @@ chrome.cookies.onChanged.addListener(
     
         //TODO: if the cookie was removed then we need to inform the tabs too!
     
-        console.log("Checking updated cookie for key");
+	if(DEBUG) {
+            //console.log("Checking updated cookie for key");
+	}
     
         var matches = info.cookie.name.match('[.A-Za-z0-9]+!!!');
         
@@ -29,12 +39,16 @@ chrome.cookies.onChanged.addListener(
             
         //assume the key is the first match
         var key = matches[0];
-        console.log("Key is: " + key);
+	if(DEBUG) {
+            //console.log("Key is: " + key);
+	}
         
         //remove key from name
         var name = info.cookie.name.substring(key.length, info.cookie.name.length);
         
-        console.log("Name is: " + name);
+	if(DEBUG) {
+            //console.log("Name is: " + name);
+	}
         
         //Get the list of tabs associated with that key
         tabIds = getTabs(key);
@@ -42,9 +56,9 @@ chrome.cookies.onChanged.addListener(
         //for every tab associated with that key, send the update
         for( var i in tabIds ){
             var request = {cookieName: name, cookieValue: info.cookie.value, isRemoved : info.removed, domain : info.cookie.domain };
-        
-            console.log("Sending update message to tab " + tabIds[i]);
-        
+            if(DEBUG) {
+		//console.log("Sending update message to tab " + tabIds[i]);
+            }
             chrome.tabs.sendRequest(parseInt(tabIds[i]), request);
         }
 
@@ -59,17 +73,19 @@ chrome.webRequest.onHeadersReceived.addListener(
         for(var i in details.responseHeaders) {
             //check if this response header is for setting cookies.
             if(details.responseHeaders[i].name.toLowerCase() == 'set-cookie') {
-                console.log('Logging cookie header before modification.');
-                console.log(details.responseHeaders[i].value);
-            
+		if(DEBUG) {
+                    //console.log('Logging cookie header before modification.');
+                    //console.log(details.responseHeaders[i].value);
+		}
                 //This is the key we need to append to the front of the cookie's name so that we can bind the cookie to a particular domain.
                 var cKey = getCookieKey(details.tabId, details.url);
                 
                 //Just append the key to the front of the header value. This works because the cookie's name is the first entry in the value string.
                 details.responseHeaders[i].value = cKey + details.responseHeaders[i].value;
-                
-                console.log('Logging the cookie header after modification.');
-                console.log(details.responseHeaders[i].value);
+                if(DEBUG) {
+                    //console.log('Logging the cookie header after modification.');
+                    //console.log(details.responseHeaders[i].value);
+		}
             }
         }
         
@@ -84,9 +100,11 @@ chrome.webRequest.onCompleted.addListener(
         for(var i in details.responseHeaders) {
             if(details.responseHeaders[i].name.toLowerCase() == 'set-cookie') {
             
-                //If we made any changes to the header, they should show up here.
-                console.log('Logging the cookie headers upon completion of webrequest');
-                console.log(details.responseHeaders[i]);
+		if(DEBUG) {
+                    //If we made any changes to the header, they should show up here.
+                    //console.log('Logging the cookie headers upon completion of webrequest');
+                    //console.log(details.responseHeaders[i]);
+		}
             }
         }
     },
@@ -98,8 +116,10 @@ chrome.webRequest.onSendHeaders.addListener(
     function(details) {
         for(var i in details.requestHeaders) {
             if(details.requestHeaders[i].name.toLowerCase() == 'cookie') {
-                console.log('Logging the cookie headers upon sending.')
-                console.log(details.requestHeaders[i]);
+		if(DEBUG) {
+                    //console.log('Logging the cookie headers upon sending.')
+                    //console.log(details.requestHeaders[i]);
+		}
             }
         }
     },
@@ -131,6 +151,7 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
             if(details.requestHeaders[i].name.toLowerCase() === 'cookie') {
                 //Cookie(s) found, we need to split the string to get all of the cookies. Cookie value strings will look like "key1=value1; key2=value2; ..."
                 var cookiesRaw = details.requestHeaders[i].value.split(";");
+
                 
                 //remove the old cookie header from the request. We will add a new one later if needed.
                 details.requestHeaders.splice(i, 1);
@@ -140,7 +161,13 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
                     cookie = cookiesRaw[j].replace(/^\s+|\s+$/g,"");
                     
                     //Check if the cookie's prepended key matches what we expect, i.e. this cookie is bound to this domain.
-                    if( cookie.substring(0, cKey.length) == cKey){
+										var curKey = cookie.substring(0, cKey.length);
+										// It's also ok if this cookie was set by a root store
+										// domain
+                    if( curKey == cKey || root_store.indexOf(cKey) != -1 ){
+											if(root_store.indexOf(cKey != -1)) {
+												console.log("Found a cookie that belongs to the root store.");
+											}
                         //Add a semicolon, if needed, to separate the cookies we have already processed.
                         if( cString.length > 0 ){
                             cString = cString + "; "; 
@@ -163,15 +190,17 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
                         if( cString.length > 0 ){
                             cString = cString + "; "; 
                         }
-                    
-                        console.log("Sending unkeyed cookie");
-                        console.log(cookie);
-                        
+			if(DEBUG) {
+                            //console.log("Sending unkeyed cookie");
+                            //console.log(cookie);
+                        }
                         var cookieSplit = splitCookieString(cookie);
                         
-                        if(cDict[cookieSplit.name]){
-                            console.log('Already found another cookie with this name. Overwriting with this cookie.');
-                        }
+			if(DEBUG) {
+                            if(cDict[cookieSplit.name]){
+				//console.log('Already found another cookie with this name. Overwriting with this cookie.');
+                            }
+			}
                         
                         cDict[cookieSplit.name] =cookieSplit.value;
                         
@@ -206,9 +235,10 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
         if( cString.length > 0 ) {
             var cookieHeader = {name:"Cookie", value:cString};
             details.requestHeaders.push(cookieHeader);
-            
-            console.log('New cookie Header:');
-            console.log(cookieHeader);
+            if(DEBUG) {
+		//console.log('New cookie Header:');
+		//console.log(cookieHeader);
+	    }
         }
         
         return  { requestHeaders:details.requestHeaders };
@@ -221,8 +251,10 @@ function getCookieKey(tabId, url){
     
     //We have to check for this because the webrequest listener fires before the tabs listener and thus this will be undefined for the first webrequest from a given tab.
     if(kv_arr[tabId] == undefined || kv_arr[tabId] == "newtab"){
-        console.log(kv_arr[tabId]);
-        console.log(url);
+	if(DEBUG) {
+            //console.log(kv_arr[tabId]);
+            //console.log(url);
+	}
         domain = getDomain(url);
         kv_arr[tabId]=domain; 
     }
@@ -248,30 +280,39 @@ function getTabs(key){
 var updateLog = {};
 
 function mostRecentUpdate(keyed_name, url, ordinal){
-    console.log("Current request ordinal: " + ordinal);
-    
+    if(DEBUG) {
+	//console.log("Current request ordinal: " + ordinal);
+    }
     
     domain = getDomain(url);
-    
-    console.log("For " + domain + " " + keyed_name);
-    
+    if(DEBUG) {
+	//console.log("For " + domain + " " + keyed_name);
+    }
     if(!updateLog[domain]){
-        console.log("Adding domain: " + domain + " to the update log.");
+	if(DEBUG) {
+            //console.log("Adding domain: " + domain + " to the update log.");
+	}
         updateLog[domain] = {};
     }
     
     if(!updateLog[domain][keyed_name]){
-        console.log("Adding cookie key: " + keyed_name + " to the updateLog[" + domain + "].");
+	if(DEBUG) {
+            //console.log("Adding cookie key: " + keyed_name + " to the updateLog[" + domain + "].");
+	}
         updateLog[domain][keyed_name] = -1;
     }
     
     if(updateLog[domain][keyed_name] < ordinal){
         updateLog[domain][keyed_name] = ordinal;
-        console.log("Most recent update.");
+	if(DEBUG) {
+            //console.log("Most recent update.");
+	}
         return true;
     }
     else{
-        console.log("Old update");
+	if(DEBUG) {
+            //console.log("Old update");
+	}
         return false;
     }
 }
@@ -287,18 +328,20 @@ function rewriteCookie(name, keyed_name, url, ordinal) {
     chrome.cookies.get({"url": url, "name": name}, function(details) {
 	
 	if(details == null) {
-	    console.log('No cookies found with details: ');
-	    console.log(name +  ' ' + keyed_name + ' ' + url);
+	    //console.log('No cookies found with details: ');
+	    //console.log(name +  ' ' + keyed_name + ' ' + url);
 	    return;
 	}
-	
-	console.log("Changing cookie " + name + " to " + keyed_name + " for url: " + url);
+	if(DEBUG) {
+	    //console.log("Changing cookie " + name + " to " + keyed_name + " for url: " + url);
+	}
 	// Delete the existing cookie from the CookieStore
 	chrome.cookies.remove({"url": url, "name": name});
 	// Add the new, keyed version to the CookieStore
 	chrome.cookies.set({"url": url, "name": keyed_name, "value": details.value, "domain": details.domain, "path": details.path, "secure": details.secure, "httpOnly": details.httpOnly, "expirationDate": details.expirationDate});
-	
-	console.log(details);
+	if(DEBUG) {
+	    //console.log(details);
+	}
     }
 )
 }
@@ -311,22 +354,32 @@ function getCookieStringFromStore(url, tabId, sendResponse) {
     chrome.cookies.getAll({"url": url}, function(cookies) {
 	
         if(cookies == null || cookies.length == 0) {
-            console.log('No cookies found with details: ' + url);
+            //console.log('No cookies found with details: ' + url);
             return;
         }
-        
-        console.log(cookies);
+        if(DEBUG) {
+            //console.log(cookies);
+	}
         
         for( var i in cookies ){
             //Check if the cookie's prepended key matches what we expect, i.e. this cookie is bound to this domain.
             if( cookies[i].name.substring(0, cKey.length) != cKey){
-                console.log("Key doesn't match. Skipping.");
+		if(DEBUG) {
+                    //console.log("Key doesn't match. Skipping.");
+		}
+						// Don't strip cookies that belong to a root store domain.
+						if(root_store.indexOf(cKey) == -1) {
                 continue;
+						} else {
+							console.log("Javascript cookie found in root store");
+						}
             }
             
             //if the cookie is httpOnly, we don't want to add it to the cookie string
             if( cookies[i].httpOnly ){
-                console.log("Cookie is httpOnly. Skipping.");
+		if(DEBUG) {
+                //console.log("Cookie is httpOnly. Skipping.");
+		}
                 continue;
             }
                 
@@ -339,9 +392,9 @@ function getCookieStringFromStore(url, tabId, sendResponse) {
                 
             cString += (name +  "=" + cookies[i].value);
         }
-        
-        console.log(cString);
-            
+        if(DEBUG) {
+            //console.log(cString);
+        }
         sendResponse(cString);
         
     });
@@ -352,43 +405,56 @@ chrome.tabs.onUpdated.addListener(
     function(tabId, changeInfo, tab) {
         // Associate the tabId with the current tab URL to track the current domain that should be able to fetch cookies.
         domain = getDomain(tab.url);
-        console.log("Associating Tab " + tabId + ' with ' + domain);
+	if(DEBUG) {
+            //console.log("Associating Tab " + tabId + ' with ' + domain);
+	}
         kv_arr[tabId]=domain;
     }
 );
 
 
-// Listen for the content script telling the extension that it's at a login page.
+// Listen for messages from the content scripts.
 chrome.extension.onRequest.addListener(
     function(request, sender, sendResponse) {
-        console.log("Message from content script!");
-    
         if (request.type == "cookieBootstrap") {  
-            console.log("Bootstrapping the cookies for the page load.");
+	    if(DEBUG) {
+		//console.log("Bootstrapping the cookies for the page load.");
+	    }
             getCookieStringFromStore(request.url, sender.tab.id, sendResponse);
         }
         else if(request.type == "setCookie") {
-            console.log("Setting cookie received from javascript: " + request.cookieRaw);
+	    if(DEBUG) {
+		//console.log("Setting cookie received from javascript: " + request.cookieRaw);
+	    }
             parseAndStoreRawCookie(sender.tab.id, request.url, request.cookieRaw);
             sendResponse("blah");
         }
-    }
+			else if(request.type == "login") {
+				// Add the domain to the root store if it is not already there.
+				if(root_store.indexOf(getDomain(request.domain)) == -1) {
+					root_store.push(getDomain(request.domain)); 
+				} 
+				console.log("Root store contains " + root_store); 
+			}
+		}
 );
 
 
 function parseAndStoreRawCookie(tabId, url, cookieRaw){
-    console.log("Attempting to parse raw cookie string: " + cookieRaw);
-    
+    if(DEBUG) {
+	//console.log("Attempting to parse raw cookie string: " + cookieRaw);
+    }
     var cookieObj = {};
     cookieObj.url = url;
     
     var cKey = getCookieKey(tabId, url);
-
     
     var cookieParts = cookieRaw.split(';');
-    
-    console.log(cookieParts);
-    
+
+    if(DEBUG) {
+	//console.log(cookieParts);
+    }
+
     for( var i=0; i<cookieParts.length; i++){
         if(cookieParts[i].length == 0)
             continue;
@@ -425,12 +491,12 @@ function parseAndStoreRawCookie(tabId, url, cookieRaw){
             cookieObj.secure = true;
         }
         else{
-            console.log("Unknown part!!!! " + partSplit); 
+            //console.log("Unknown part!!!! " + partSplit); 
         }
     }
-    
-    console.log(cookieObj);
-    
+    if(DEBUG) {
+	//console.log(cookieObj);
+    }
     chrome.cookies.set(cookieObj);
 }
 
@@ -438,15 +504,11 @@ function parseAndStoreRawCookie(tabId, url, cookieRaw){
 
 function getDomain(url) {
     //TODO: Not sure what happens when you specify an IP address.
-    
-    //pathArray = url.replace('www','');
-    
-    //split on the /, take the domain part and split on the '.'
     pathArray = url.split('/');
-    
-    
     if(pathArray.length < 2){
-        console.log('Failed to parse url string: ' + url);
+	if(DEBUG) {
+            //console.log('Failed to parse url string: ' + url);
+	}
         return url;
     }
     
@@ -460,8 +522,8 @@ function getDomain(url) {
     else if(pathArray[pathArray.length-1].length == 2) {
         return pathArray[pathArray.length-3]+'.'+pathArray[pathArray.length-2]+'.'+pathArray[pathArray.length-1];
     }
-    
-    console.log('Failed to parse url string: ' + url);
-    
+    if(DEBUG) {
+	//console.log('Failed to parse url string: ' + url);
+    }
     return url;
 }

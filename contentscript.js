@@ -1,15 +1,3 @@
-function detectLogin() {
-// Get all elements with <input> tags (forms)
-    var els = document.getElementsByTagName('input');
-// Find a password field.
-    for(var x = 0; x < els.length; x++) { 
-	if(els[x].type.toLowerCase() == 'password' ) { 
-	    // Notify background.js
-	    chrome.extension.sendRequest({page: 'login page', domain: document.domain.replace('www.','')});
-	}
-    }
-}
-
 function cookieUpdate(name, value, remove){
     //Update the cookieDiv with the appropriate cookie string.
     var cString = _cookieDiv.innerText;
@@ -17,7 +5,9 @@ function cookieUpdate(name, value, remove){
     var cookieFound = false;
     var cookiesRaw = cString.split(";");
     
-    console.log(name + " isRemoved? " + remove);
+    if(DEBUG) {
+	//console.log(name + " isRemoved? " + remove);
+    }
     
     for( var i in cookiesRaw ) {
         //remove the whitespace
@@ -28,8 +18,8 @@ function cookieUpdate(name, value, remove){
             cookieFound = true;
             
             //If we want to remove the cookie, we just skip adding the cookie to the new string
-            if(remove)
-                console.log("removing cookie from string");
+            if(remove) 
+                //console.log("removing cookie from string");
                 continue;
                 
             //replace the cookie with the new value
@@ -54,9 +44,10 @@ function cookieUpdate(name, value, remove){
         cStringNew += name + "=" + value;
     }
     
-    
-    console.log("Old cookie string " + cString);
-    console.log("New cookie string " + cStringNew);
+    if(DEBUG) {
+	//console.log("Old cookie string " + cString);
+	//console.log("New cookie string " + cStringNew);
+    }
     
     _cookieDiv.innerText = cStringNew;
 }
@@ -93,8 +84,8 @@ var actualCode =
     '_messageDiv.innerText = "Nom Nom Nom";' +
     'var _cookie = document.cookie;' + 
     'console.log(document.cookie);' + 
-    'document.__defineSetter__("cookie", function(the_cookie) {_cookie = the_cookie; console.log("Our cookie setter was called! " + the_cookie); _messageDiv.innerText = the_cookie; _messageDiv.dispatchEvent(_messageEvent); } );' +
-    'document.__defineGetter__("cookie", function() {console.log("Our getter was called: " + _cookieDiv.innerText); return _cookieDiv.innerText;} );';
+    'document.__defineSetter__("cookie", function(the_cookie) {_cookie = the_cookie; _messageDiv.innerText = the_cookie; _messageDiv.dispatchEvent(_messageEvent); } );' +
+    'document.__defineGetter__("cookie", function() {return _cookieDiv.innerText;} );';
 
 var script = document.createElement('script');
 script.appendChild(document.createTextNode(actualCode));
@@ -103,24 +94,30 @@ script.parentNode.removeChild(script);
 var _messageDiv = document.getElementById("messageDiv");
 
 var _cookieDiv = document.getElementById("cookieDiv");
+var DEBUG = new Boolean(0);
 
 //We need to prepopulate the cookie div when the page loads.
 
 chrome.extension.sendRequest({type : 'cookieBootstrap', url : document.URL}, 
     function(cString) {
-        console.log("Bootstrapping cookie div to :" + cString);
+	if(DEBUG) {
+            //console.log("Bootstrapping cookie div to :" + cString);
+	}
         _cookieDiv.innerText = cString;
     });
     
     
 chrome.extension.onRequest.addListener(
     function(request, sender, sendResponse){
-        console.log("Cookie update message received by content script! " + request.cookieName);
-        console.log(request.domain);
-        console.log(document.domain);
-        
+	if(DEBUG) {
+            //console.log("Cookie update message received by content script! " + request.cookieName);
+            //console.log(request.domain);
+            //console.log(document.domain);
+        }
         if(domainMatch(request.domain)){
-            console.log("Cookie update for correct domain.");
+	    if(DEBUG) {
+		//console.log("Cookie update for correct domain.");
+	    }
             cookieUpdate(request.cookieName, request.cookieValue, request.isRemoved);
         }
     
@@ -129,16 +126,16 @@ chrome.extension.onRequest.addListener(
 
 document.addEventListener('messageEvent', 
     function() { 
-        console.log("Sending cookie info to background: " + _messageDiv.innerText); 
-        
+	if(DEBUG) {
+            //console.log("Sending cookie info to background: " + _messageDiv.innerText); 
+        }
         rawCookieUpdate(_messageDiv.innerText);
         
         chrome.extension.sendRequest(
-            {type:'setCookie', url : document.URL, cookieRaw:_messageDiv.innerText}, 
-            function(details){console.log('done messing stuff up!'); });
+            {type:'setCookie', url : document.URL, cookieRaw:_messageDiv.innerText});//, 
+            //function(details){console.log('done messing stuff up!'); });
     
     });
-    
     
 function rawCookieUpdate(cStringRaw){
         var cookieParts = cStringRaw.split(";");
