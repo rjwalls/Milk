@@ -17,15 +17,13 @@ chrome.cookies.onChanged.addListener(
             //console.log("onChanged" + JSON.stringify(info));
 	}
         
-        //TODO: Whenever a cookie is updated, we need to send the updated cookie to every tab that should be able to read it via javascript (and the cookie has httpOnly set to false)
+        //Whenever a cookie is updated, we need to send the updated cookie to every tab that should be able to read it via javascript (and the cookie has httpOnly set to false)
         
         
         
         //Only update the tabs if the cookie is not http only
         if( info.cookie.httpOnly) 
             return;
-    
-        //TODO: if the cookie was removed then we need to inform the tabs too!
     
 	if(DEBUG) {
             //console.log("Checking updated cookie for key");
@@ -161,13 +159,15 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
                     cookie = cookiesRaw[j].replace(/^\s+|\s+$/g,"");
                     
                     //Check if the cookie's prepended key matches what we expect, i.e. this cookie is bound to this domain.
-										var curKey = cookie.substring(0, cKey.length);
-										// It's also ok if this cookie was set by a root store
-										// domain
+					var curKey = cookie.substring(0, cKey.length);
+
+					// It's also ok if this cookie was set by a root store
+					// domain
                     if( curKey == cKey || root_store.indexOf(cKey) != -1 ){
-											if(root_store.indexOf(cKey != -1)) {
-												console.log("Found a cookie that belongs to the root store.");
-											}
+					    if(root_store.indexOf(cKey != -1)) {
+						    console.log("Found a cookie that belongs to the root store.");
+						}
+
                         //Add a semicolon, if needed, to separate the cookies we have already processed.
                         if( cString.length > 0 ){
                             cString = cString + "; "; 
