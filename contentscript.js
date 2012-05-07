@@ -44,8 +44,8 @@ function cookieUpdate(name, value, remove){
         cStringNew += name + "=" + value;
     }
     
-	console.log("Old cookie string " + cString);
-	console.log("New cookie string " + cStringNew);
+	//console.log("Old cookie string " + cString);
+	//console.log("New cookie string " + cStringNew);
 
     
     _cookieDiv.innerText = cStringNew;
