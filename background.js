@@ -3,7 +3,8 @@
 // Logging switch
 var DEBUG = new Boolean(1);
 // Global storage for tabId->domain mappings.
-var kv_arr=new Array();
+//var kv_arr=new Array();
+var kv_arr = {};
 var root_store = new Array();
 
 if(DEBUG) {
@@ -19,16 +20,10 @@ chrome.cookies.onChanged.addListener(
         
         //Whenever a cookie is updated, we need to send the updated cookie to every tab that should be able to read it via javascript (and the cookie has httpOnly set to false)
         
-        
-        
         //Only update the tabs if the cookie is not http only
         if( info.cookie.httpOnly) 
             return;
-    
-	if(DEBUG) {
-            //console.log("Checking updated cookie for key");
-	}
-    
+        
         var matches = info.cookie.name.match('[.A-Za-z0-9]+!!!');
         
         //if it has no key then do nothing.
@@ -37,16 +32,9 @@ chrome.cookies.onChanged.addListener(
             
         //assume the key is the first match
         var key = matches[0];
-	if(DEBUG) {
-            //console.log("Key is: " + key);
-	}
-        
+
         //remove key from name
         var name = info.cookie.name.substring(key.length, info.cookie.name.length);
-        
-	if(DEBUG) {
-            //console.log("Name is: " + name);
-	}
         
         //Get the list of tabs associated with that key
         tabIds = getTabs(key);
@@ -55,10 +43,11 @@ chrome.cookies.onChanged.addListener(
         for( var i in tabIds ){
             var request = {cookieName: name, cookieValue: info.cookie.value, isRemoved : info.removed, domain : info.cookie.domain };
             
-            console.log("Sending update message to tab " + tabIds[i]);
-            
             
             if( tabIds[i] >= 0){
+                console.log("Sending update message to tab " + tabIds[i]);
+                console.log("Key is: " + key);
+                console.log("Name is: " + name);
                 chrome.tabs.sendRequest(parseInt(tabIds[i]), request);
             }
         }
@@ -414,7 +403,14 @@ chrome.tabs.onUpdated.addListener(
     }
 );
 
+chrome.tabs.onRemoved.addListener(
+    function(tabId, removeInfo) {
+        //Remove the tab Id and it's domain association from the domain store
+        delete kv_arr[tabId];
+    
+    }
 
+);
 // Listen for messages from the content scripts.
 chrome.extension.onRequest.addListener(
     function(request, sender, sendResponse) {
