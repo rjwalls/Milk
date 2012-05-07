@@ -14,7 +14,7 @@ function detectLogin() {
 			else {
 				cookie_domain = domain_els[domain_els.length-3]+'.'+domain_els[domain_els.length-2]+'.'+domain_els[domain_els.length-1];
 			}
-	    chrome.extension.sendRequest({type: 'login', domain: cookie_domain});
+	        chrome.extension.sendRequest({type: 'login', domain: cookie_domain});
 		}
   }
 }

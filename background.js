@@ -1,7 +1,7 @@
 // Copyright (c) 2012 
 
 // Logging switch
-var DEBUG = new Boolean(0);
+var DEBUG = new Boolean(1ßß);
 // Global storage for tabId->domain mappings.
 var kv_arr=new Array();
 var root_store = new Array();
@@ -54,10 +54,13 @@ chrome.cookies.onChanged.addListener(
         //for every tab associated with that key, send the update
         for( var i in tabIds ){
             var request = {cookieName: name, cookieValue: info.cookie.value, isRemoved : info.removed, domain : info.cookie.domain };
-            if(DEBUG) {
-		//console.log("Sending update message to tab " + tabIds[i]);
+            
+            console.log("Sending update message to tab " + tabIds[i]);
+            
+            
+            if( tabIds[i] >= 0){
+                chrome.tabs.sendRequest(parseInt(tabIds[i]), request);
             }
-            chrome.tabs.sendRequest(parseInt(tabIds[i]), request);
         }
 
 
@@ -161,11 +164,14 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
                     //Check if the cookie's prepended key matches what we expect, i.e. this cookie is bound to this domain.
 					var curKey = cookie.substring(0, cKey.length);
 
+                    console.log(root_store);
+
 					// It's also ok if this cookie was set by a root store
 					// domain
                     if( curKey == cKey || root_store.indexOf(cKey) != -1 ){
-					    if(root_store.indexOf(cKey != -1)) {
-						    console.log("Found a cookie that belongs to the root store.");
+					    if(root_store.indexOf(cKey) != -1) {
+						    console.log("Found a cookie that belongs to the root store. key: " + cKey);
+						    console.log(root_store);
 						}
 
                         //Add a semicolon, if needed, to separate the cookies we have already processed.
@@ -236,9 +242,9 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
             var cookieHeader = {name:"Cookie", value:cString};
             details.requestHeaders.push(cookieHeader);
             if(DEBUG) {
-		//console.log('New cookie Header:');
-		//console.log(cookieHeader);
-	    }
+                //console.log('New cookie Header:');
+                //console.log(cookieHeader);
+	        }
         }
         
         return  { requestHeaders:details.requestHeaders };
@@ -352,35 +358,33 @@ function getCookieStringFromStore(url, tabId, sendResponse) {
     var cString = "";
     
     chrome.cookies.getAll({"url": url}, function(cookies) {
-	
+
+        //Check to see if we have any cookies to deal with. If not just return
         if(cookies == null || cookies.length == 0) {
             //console.log('No cookies found with details: ' + url);
             return;
         }
-        if(DEBUG) {
-            //console.log(cookies);
-	}
         
         for( var i in cookies ){
-            //Check if the cookie's prepended key matches what we expect, i.e. this cookie is bound to this domain.
-            if( cookies[i].name.substring(0, cKey.length) != cKey){
-		if(DEBUG) {
-                    //console.log("Key doesn't match. Skipping.");
-		}
-						// Don't strip cookies that belong to a root store domain.
-						if(root_store.indexOf(cKey) == -1) {
+        
+            //check if cookie is in the root store
+            var isRoot = root_store.indexOf(cKey) != -1;
+        
+            //Check if the cookie's prepended key matches what we expect, i.e. this cookie is bound to this domain and that the cookie does not belong to the root store.
+            if( cookies[i].name.substring(0, cKey.length) != cKey && !isRoot){
+        
+                //console.log("Key doesn't match. Skipping.");
                 continue;
-						} else {
-							console.log("Javascript cookie found in root store");
-						}
             }
             
             //if the cookie is httpOnly, we don't want to add it to the cookie string
             if( cookies[i].httpOnly ){
-		if(DEBUG) {
-                //console.log("Cookie is httpOnly. Skipping.");
-		}
-                continue;
+                    //console.log("Cookie is httpOnly. Skipping.");
+                    continue;
+                }
+                
+            if(isRoot){
+                    console.log("Javascript cookie found in root store");
             }
                 
              //remove the key prefix
@@ -392,9 +396,7 @@ function getCookieStringFromStore(url, tabId, sendResponse) {
                 
             cString += (name +  "=" + cookies[i].value);
         }
-        if(DEBUG) {
-            //console.log(cString);
-        }
+        
         sendResponse(cString);
         
     });
@@ -430,9 +432,9 @@ chrome.extension.onRequest.addListener(
             sendResponse("blah");
         }
 			else if(request.type == "login") {
-				// Add the domain to the root store if it is not already there.
+				//// Add the domain to the root store if it is not already there.
 				if(root_store.indexOf(getDomain(request.domain)) == -1) {
-					root_store.push(getDomain(request.domain)); 
+				    root_store.push(getDomain(request.domain)); 
 				} 
 				console.log("Root store contains " + root_store); 
 			}
