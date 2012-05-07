@@ -98,8 +98,8 @@ var DEBUG = new Boolean(0);
 //We need to prepopulate the cookie div when the page loads.
 chrome.extension.sendRequest({type : 'cookieBootstrap', url : document.URL}, 
     function(cString) {
-        console.log(document.URL);
-        console.log("Bootstrapping cookie div to :" + cString);
+        //console.log(document.URL);
+        //console.log("Bootstrapping cookie div to :" + cString);
         
         _cookieDiv.innerText = cString;
     });
@@ -107,9 +107,9 @@ chrome.extension.sendRequest({type : 'cookieBootstrap', url : document.URL},
     
 chrome.extension.onRequest.addListener(
     function(request, sender, sendResponse){
-        console.log("Cookie update message received by content script! " + request.cookieName);
-        console.log(request.domain);
-        console.log(document.domain);
+        //console.log("Cookie update message received by content script! " + request.cookieName);
+        //console.log(request.domain);
+        //console.log(document.domain);
             
         if(domainMatch(request.domain)){
             //console.log("Cookie update for correct domain.");

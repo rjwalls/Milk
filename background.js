@@ -150,26 +150,30 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
                     //remove the whitespace.
                     cookie = cookiesRaw[j].replace(/^\s+|\s+$/g,"");
                     
+                    //check if cookie is in the root store
+                    var isRoot = root_store.indexOf(getDomain(details.url)) != -1;
+            
                     //Check if the cookie's prepended key matches what we expect, i.e. this cookie is bound to this domain.
-					var curKey = cookie.substring(0, cKey.length);
-
-                    console.log(root_store);
-
+                    var isKeyMatch = cookie.substring(0, cKey.length) == cKey;
+                    
 					// It's also ok if this cookie was set by a root store
 					// domain
-                    if( curKey == cKey || root_store.indexOf(cKey) != -1 ){
-					    if(root_store.indexOf(cKey) != -1) {
-						    console.log("Found a cookie that belongs to the root store. key: " + cKey);
-						    console.log(root_store);
-						}
+                    if( isKeyMatch || isRoot ){
 
                         //Add a semicolon, if needed, to separate the cookies we have already processed.
                         if( cString.length > 0 ){
                             cString = cString + "; "; 
                         }
                         
+                        //If the domain is in the root store, then the key we remove will be different than cKey, so we cant just use the length.
+                        var matches = cookie.match('[.A-Za-z0-9]+!!!');
+        
+            
+                        //assume the key is the first match
+                        var key = matches[0];
+                
                         //remove the key prefix before sending to the server so the cookie will have a name the server expects.
-                        cookie = cookie.substring(cKey.length, cookie.length);
+                        cookie = cookie.substring(key.length, cookie.length);
                         
                         var cookieSplit = splitCookieString(cookie);
                         
@@ -358,8 +362,8 @@ function getCookieStringFromStore(url, tabId, sendResponse) {
             return;
         }
         
-        console.log("Getting cookies for " + cKey);
-        console.log("domain" + getDomain(url));
+        //console.log("Getting cookies for " + cKey);
+        //console.log("domain" + getDomain(url));
         
         for( var i in cookies ){
             //check if cookie is in the root store
@@ -370,12 +374,9 @@ function getCookieStringFromStore(url, tabId, sendResponse) {
         
             var isHttpOnly = cookies[i].httpOnly;
             
-            console.log("isRoot " + isRoot);
-            console.log("isKeyMatch " + isKeyMatch);
-            console.log("isHttpOnly " + isHttpOnly);
             
             if( isRoot || (isKeyMatch && !isHttpOnly)){
-                console.log("Adding cookie to string");
+                //console.log("Adding cookie to string");
             
                 
                 //If the domain is in the root store, then the key we remove will be different than cKey, so we cant just use the length.
@@ -394,16 +395,10 @@ function getCookieStringFromStore(url, tabId, sendResponse) {
                 
                 cString += (name +  "=" + cookies[i].value);
             }
-            
                 
-            if(isRoot){
-                    console.log("Javascript cookie found in root store");
-            }
-                
-
         }
         
-        console.log(cString);
+        //console.log(cString);
         
         sendResponse(cString);
         
@@ -451,7 +446,7 @@ chrome.extension.onRequest.addListener(
 				if(root_store.indexOf(getDomain(request.domain)) == -1) {
 				    root_store.push(getDomain(request.domain)); 
 				} 
-				console.log("Root store contains " + root_store); 
+				//console.log("Root store contains " + root_store); 
 			}
 		}
 );
