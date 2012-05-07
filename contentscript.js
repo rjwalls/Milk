@@ -98,6 +98,7 @@ var DEBUG = new Boolean(0);
 //We need to prepopulate the cookie div when the page loads.
 chrome.extension.sendRequest({type : 'cookieBootstrap', url : document.URL}, 
     function(cString) {
+        console.log(document.URL);
         console.log("Bootstrapping cookie div to :" + cString);
         
         _cookieDiv.innerText = cString;

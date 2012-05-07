@@ -45,9 +45,9 @@ chrome.cookies.onChanged.addListener(
             
             
             if( tabIds[i] >= 0){
-                console.log("Sending update message to tab " + tabIds[i]);
-                console.log("Key is: " + key);
-                console.log("Name is: " + name);
+                //console.log("Sending update message to tab " + tabIds[i]);
+                //console.log("Key is: " + key);
+                //console.log("Name is: " + name);
                 chrome.tabs.sendRequest(parseInt(tabIds[i]), request);
             }
         }
@@ -263,9 +263,13 @@ function getCookieKey(tabId, url){
 function getTabs(key){
     var tabs = [];
     
+    var isRoot = (root_store.indexOf(key) == -1);
+    
     for(var id in kv_arr){
-        if( (kv_arr[id] + "!!!") == key )
+        //TODO: If key is in root store, send to all tabs.
+        if( isRoot || ((kv_arr[id] + "!!!") == key) )
             tabs.push(id);
+
     }
     
     return tabs;
@@ -354,37 +358,52 @@ function getCookieStringFromStore(url, tabId, sendResponse) {
             return;
         }
         
+        console.log("Getting cookies for " + cKey);
+        console.log("domain" + getDomain(url));
+        
         for( var i in cookies ){
-        
             //check if cookie is in the root store
-            var isRoot = root_store.indexOf(cKey) != -1;
+            var isRoot = root_store.indexOf(getDomain(url)) != -1;
+            
+            //Check if the cookie's prepended key matches what we expect,
+            var isKeyMatch = cookies[i].name.substring(0, cKey.length) == cKey;
         
-            //Check if the cookie's prepended key matches what we expect, i.e. this cookie is bound to this domain and that the cookie does not belong to the root store.
-            if( cookies[i].name.substring(0, cKey.length) != cKey && !isRoot){
+            var isHttpOnly = cookies[i].httpOnly;
+            
+            console.log("isRoot " + isRoot);
+            console.log("isKeyMatch " + isKeyMatch);
+            console.log("isHttpOnly " + isHttpOnly);
+            
+            if( isRoot || (isKeyMatch && !isHttpOnly)){
+                console.log("Adding cookie to string");
+            
+                
+                //If the domain is in the root store, then the key we remove will be different than cKey, so we cant just use the length.
+                var matches = cookies[i].name.match('[.A-Za-z0-9]+!!!');
         
-                //console.log("Key doesn't match. Skipping.");
-                continue;
+            
+                //assume the key is the first match
+                var key = matches[0];
+                
+                //remove the key prefix
+                name = cookies[i].name.substring(key.length, cookies[i].name.length);
+        
+                //Add a semicolon, if needed, to separate the cookies we have already processed.
+                if( cString.length > 0 )
+                    cString += "; "; 
+                
+                cString += (name +  "=" + cookies[i].value);
             }
             
-            //if the cookie is httpOnly, we don't want to add it to the cookie string
-            if( cookies[i].httpOnly ){
-                    //console.log("Cookie is httpOnly. Skipping.");
-                    continue;
-                }
                 
             if(isRoot){
                     console.log("Javascript cookie found in root store");
             }
                 
-             //remove the key prefix
-            name = cookies[i].name.substring(cKey.length, cookies[i].name.length);
-        
-            //Add a semicolon, if needed, to separate the cookies we have already processed.
-            if( cString.length > 0 )
-                cString += "; "; 
-                
-            cString += (name +  "=" + cookies[i].value);
+
         }
+        
+        console.log(cString);
         
         sendResponse(cString);
         
