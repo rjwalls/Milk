@@ -1,7 +1,7 @@
 // Copyright (c) 2012 
 
 // Logging switch
-var DEBUG = new Boolean(1ßß);
+var DEBUG = new Boolean(1);
 // Global storage for tabId->domain mappings.
 var kv_arr=new Array();
 var root_store = new Array();
