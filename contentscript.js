@@ -43,11 +43,7 @@ function cookieUpdate(name, value, remove){
         //Add the cookie to the new cookie string
         cStringNew += name + "=" + value;
     }
-    
-	//console.log("Old cookie string " + cString);
-	//console.log("New cookie string " + cStringNew);
-
-    
+        
     _cookieDiv.innerText = cStringNew;
 }
 
@@ -69,6 +65,10 @@ function domainMatch(domain){
     return false;
 }
 
+
+//This code is injected into each page. It overwrites the document.cookie so we can catch and rewrite any cookie set from the page itself.
+//The cookieDiv is used to store the document.cookie getter string.
+//The messageDiv is used to store raw cookies that the page is trying to set.
 var actualCode = 
     'var _cookieDiv = document.createElement("div");' +
     '_cookieDiv.setAttribute("id","cookieDiv");' +
@@ -90,40 +90,35 @@ var script = document.createElement('script');
 script.appendChild(document.createTextNode(actualCode));
 (document.head || document.documentElement).appendChild(script);
 script.parentNode.removeChild(script);
+
+//Retrieve the messageDiv we just injected into the page. This div is as temp storage for write calls to document.cookie
 var _messageDiv = document.getElementById("messageDiv");
 
+//This div (injected by our extension) holds the current cookie string.
 var _cookieDiv = document.getElementById("cookieDiv");
+
 var DEBUG = new Boolean(0);
 
-//We need to prepopulate the cookie div when the page loads.
+//We need to prepopulate the cookie div when the page loads. Our background script will look through the cookies and return the appropriate ones using the callback.
 chrome.extension.sendRequest({type : 'cookieBootstrap', url : document.URL}, 
-    function(cString) {
-        //console.log(document.URL);
-        //console.log("Bootstrapping cookie div to :" + cString);
-        
+    function(cString) {        
         _cookieDiv.innerText = cString;
     });
     
-    
+//Listen for any update messages from the background script. These message will be sent if any cookie in the store is updated and the tab's domain matches. Could occur if cookies are updated via HTTP headers.
 chrome.extension.onRequest.addListener(
-    function(request, sender, sendResponse){
-        //console.log("Cookie update message received by content script! " + request.cookieName);
-        //console.log(request.domain);
-        //console.log(document.domain);
-            
-        if(domainMatch(request.domain)){
-            //console.log("Cookie update for correct domain.");
-            
+    function(request, sender, sendResponse){            
+        if(domainMatch(request.domain)){            
             cookieUpdate(request.cookieName, request.cookieValue, request.isRemoved);
         }
     
     }
 );
 
+//Fires when the document.cookie setter is called. Tells the background script to set a new cookie.
 document.addEventListener('messageEvent', 
-    function() { 
-        //console.log("Sending cookie info to background: " + _messageDiv.innerText); 
-        
+    function() {
+        //immediately add this cookie to the cookie div
         rawCookieUpdate(_messageDiv.innerText);
         
         chrome.extension.sendRequest(
@@ -131,6 +126,7 @@ document.addEventListener('messageEvent',
     
     });
     
+//Add a raw cookie to the cookie div. We need to call this function when the document.cookie setter is called so that cookie is available to page sooner. Otherwise we would have to wait for a bunch of update messages.
 function rawCookieUpdate(cStringRaw){
         var cookieParts = cStringRaw.split(";");
 

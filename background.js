@@ -1,15 +1,14 @@
 // Copyright (c) 2012 
 
 // Logging switch
-var DEBUG = new Boolean(1);
+var DEBUG = new Boolean(0);
+
 // Global storage for tabId->domain mappings.
 //var kv_arr=new Array();
 var kv_arr = {};
-var root_store = new Array();
 
-if(DEBUG) {
-    //console.log(chrome.webRequest)
-}
+//Stores information about sites that are in the root store.
+var root_store = new Array();
 
 //Logs anytime a cookie is changed.
 chrome.cookies.onChanged.addListener( 
@@ -116,6 +115,7 @@ chrome.webRequest.onSendHeaders.addListener(
     {urls: ["<all_urls>"]},
     ["requestHeaders"]);
 
+//Splits cookie strings of the format "name=value"
 function splitCookieString(cookie) {
     var index = cookie.indexOf('=');
     
@@ -125,7 +125,6 @@ function splitCookieString(cookie) {
     
     return {'name':name, 'value':value};
 }
-
 
 var requestOrdinal = 0;
 
@@ -250,10 +249,10 @@ function getCookieKey(tabId, url){
     
     //We have to check for this because the webrequest listener fires before the tabs listener and thus this will be undefined for the first webrequest from a given tab.
     if(kv_arr[tabId] == undefined || kv_arr[tabId] == "newtab"){
-	if(DEBUG) {
+        if(DEBUG) {
             //console.log(kv_arr[tabId]);
             //console.log(url);
-	}
+        }
         domain = getDomain(url);
         kv_arr[tabId]=domain; 
     }
@@ -282,6 +281,7 @@ function getTabs(key){
 
 var updateLog = {};
 
+//This function is supposed to keep some sort of ordering on cookie updates. I am not sure it is actually needed. -RJW
 function mostRecentUpdate(keyed_name, url, ordinal){
     if(DEBUG) {
 	//console.log("Current request ordinal: " + ordinal);
@@ -417,6 +417,7 @@ chrome.tabs.onUpdated.addListener(
     }
 );
 
+// A listener that removes removed tabs from the kv_arr array
 chrome.tabs.onRemoved.addListener(
     function(tabId, removeInfo) {
         //Remove the tab Id and it's domain association from the domain store
@@ -452,6 +453,7 @@ chrome.extension.onRequest.addListener(
 );
 
 
+//Parses the raw cookie string passed from the content script. This is the cookie string that is normally parsed by document.cookie. In essence, this function implements the functionality of document.cookie.
 function parseAndStoreRawCookie(tabId, url, cookieRaw){
     if(DEBUG) {
 	//console.log("Attempting to parse raw cookie string: " + cookieRaw);
@@ -512,8 +514,7 @@ function parseAndStoreRawCookie(tabId, url, cookieRaw){
     chrome.cookies.set(cookieObj);
 }
 
-
-
+//Gets the domain from the URL
 function getDomain(url) {
     //TODO: Not sure what happens when you specify an IP address.
     pathArray = url.split('/');
