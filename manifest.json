@@ -1,11 +1,11 @@
 {
-  "name" : "Cookie Monster",
+  "name" : "Milk",
   "version" : "0.1",
-  "description" : "Nom Nom Nom",
+  "description" : "Limits tracking on the web without breaking everything.",
   "permissions": [ "cookies", "tabs", "http://*/*", "https://*/*", "webRequest", "webRequestBlocking", "background"],
-  "icons": { "16": "cookie.png", "48": "cookie.png", "128": "cookie.png" },
+  "icons": { "16": "cow.png", "48": "cow.png", "128": "cow.png" },
   "browser_action": {
-    "default_icon": "cookie.png"
+    "default_icon": "cow.png"
   },
   "background": {
     "scripts": ["background.js"]
