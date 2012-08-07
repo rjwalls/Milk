@@ -3,6 +3,8 @@ About
 
 We created Milk to illustrate the concept of functional privacy. Milk is designed to limit cross-site tracking without reducing functionality for the user. The general idea is to restrict, or bind, cookies to the first-party site from which they were created rather than disabling cookies entirely. 
 
+Send questions and comments to milkhelp@cs.umass.edu.
+
 
 Algo Overview
 ==========
